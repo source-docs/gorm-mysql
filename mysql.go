@@ -26,20 +26,31 @@ const (
 )
 
 type Config struct {
-	DriverName                    string
-	ServerVersion                 string
-	DSN                           string
-	DSNConfig                     *mysql.Config
-	Conn                          gorm.ConnPool
-	SkipInitializeWithVersion     bool
-	DefaultStringSize             uint
-	DefaultDatetimePrecision      *int
-	DisableWithReturning          bool
-	DisableDatetimePrecision      bool
-	DontSupportRenameIndex        bool
-	DontSupportRenameColumn       bool
-	DontSupportForShareClause     bool
+	DriverName    string
+	ServerVersion string
+	DSN           string
+	DSNConfig     *mysql.Config
+	Conn          gorm.ConnPool
+	// SkipInitializeWithVersion MySQL 5.7.4 之前的版本初始化会返回额外信息，跳过初始化才能正常使用
+	SkipInitializeWithVersion bool
+	// DefaultStringSize 当使用 GORM 定义模型时，如果字符串字段没有指定长度，默认的字符串字段长度。默认为 191
+	DefaultStringSize uint
+	// DefaultDatetimePrecision 当使用 GORM 定义模型时，如果时间字段没有指定精度，则会使用此默认值。 默认为 3，
+	DefaultDatetimePrecision *int
+	// DisableWithReturning 在执行 INSERT、UPDATE 或 DELETE 操作时不返回受影响的行数或自动生成的 ID。
+	// 执行大批量数据操作的场景，可以减少返回结果的数据量，提高性能。
+	DisableWithReturning bool
+	// DisableDatetimePrecision 禁用自动根据数据库类型和版本等信息来设置时间字段的精度的功能。
+	DisableDatetimePrecision bool
+	// DontSupportRenameIndex 控制是否启用重命名索引的。如果为 false，会生成一个 RENAME INDEX ? TO ? 语句
+	DontSupportRenameIndex bool
+	// DontSupportRenameColumn 是否启用重命名列。如果为 false, 会生成 RENAME COLUMN ? TO ? 语句
+	DontSupportRenameColumn bool
+	// DontSupportForShareClause 用来控制是否启用 FOR SHARE 子句
+	DontSupportForShareClause bool
+	// DontSupportNullAsDefaultValue 是否启用将 NULL 作为默认值的功能。如果将该配置项设置为 true，则 GORM 将不会尝试将 NULL 作为默认值
 	DontSupportNullAsDefaultValue bool
+	// 用来控制是否启用重命名列时保留唯一约束的功能。
 	DontSupportRenameColumnUnique bool
 }
 
@@ -389,6 +400,8 @@ func (dialector Dialector) getSchemaStringType(field *schema.Field) string {
 			// TEXT, GEOMETRY or JSON column can't have a default value
 			if field.PrimaryKey || field.HasDefaultValue || hasIndex {
 				size = 191 // utf8mb4
+				// 在 MySQL 5.7.7 之前的版本中，对于索引列的长度限制为最大 767 字节，
+				// 而一个 UTF-8 编码的字符最多占用 4 个字节，因此，字符串字段的长度不能超过 191
 			}
 		}
 	}
